@@ -135,8 +135,8 @@
                         row.innerHTML = `
                             <td>${exercise.name}</td>
                             <td>${exercise.target}</td>
-                            <td><input type="number" min="0"></td>
-                            <td><input type="checkbox"></td>
+                            <td><input type="number" min="0" oninput="checkTarget(this)"></td>
+                            <td><input type="checkbox" disabled></td>
                         `;
                     });
                     
@@ -146,6 +146,22 @@
                 
                 container.appendChild(workoutDiv);
             });
+        }
+
+        function checkTarget(input) {
+            const row = input.closest('tr');
+            const targetCell = row.cells[1];
+            const achievedValue = parseInt(input.value);
+            const checkbox = row.cells[3].querySelector('input[type="checkbox"]');
+            
+            const targetRange = targetCell.textContent.split('-').map(Number);
+            
+            if (targetRange.length === 2) {
+                checkbox.checked = achievedValue >= targetRange[0] && achievedValue <= targetRange[1];
+            } else {
+                const singleTarget = parseInt(targetCell.textContent);
+                checkbox.checked = achievedValue >= singleTarget;
+            }
         }
 
         function saveProgress() {
@@ -174,8 +190,9 @@
                 const tables = document.querySelectorAll('table');
                 tables.forEach((table, tableIndex) => {
                     table.querySelectorAll('tr:not(:first-child)').forEach((row, rowIndex) => {
-                        row.cells[2].querySelector('input').value = savedProgress[tableIndex][rowIndex].achieved;
-                        row.cells[3].querySelector('input').checked = savedProgress[tableIndex][rowIndex].targetMet;
+                        const achievedInput = row.cells[2].querySelector('input');
+                        achievedInput.value = savedProgress[tableIndex][rowIndex].achieved;
+                        checkTarget(achievedInput);
                     });
                 });
             }

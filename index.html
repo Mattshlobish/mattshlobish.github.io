@@ -4,18 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Suivi d'Entraînement</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
             line-height: 1.6;
             color: #333;
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             padding: 20px;
             background-color: #f4f4f4;
         }
-        h1, h2, h3 {
+        h1, h2 {
             color: #2c3e50;
         }
         table {
@@ -54,16 +53,13 @@
             cursor: pointer;
             border-radius: 4px;
             font-size: 16px;
-            margin-bottom: 20px;
         }
         button:hover {
             background-color: #27ae60;
         }
-        .chart-container {
-            position: relative;
-            height: 300px;
-            width: 100%;
-            margin-bottom: 30px;
+        .last-session {
+            font-style: italic;
+            color: #7f8c8d;
         }
         @media (max-width: 600px) {
             table {
@@ -123,11 +119,11 @@
 
         function createWorkoutTables() {
             const container = document.getElementById('workout-tables');
-            workouts.forEach((workout, workoutIndex) => {
+            workouts.forEach(workout => {
                 const workoutDiv = document.createElement('div');
                 workoutDiv.innerHTML = `<h2>${workout.name}</h2>`;
                 
-                workout.circuits.forEach((circuit, circuitIndex) => {
+                workout.circuits.forEach(circuit => {
                     const table = document.createElement('table');
                     table.innerHTML = `
                         <tr>
@@ -135,30 +131,23 @@
                             <th>Objectif</th>
                             <th>Réalisé</th>
                             <th>Objectif atteint</th>
+                            <th>Dernière séance</th>
                         </tr>
                     `;
                     
-                    circuit.exercises.forEach((exercise, exerciseIndex) => {
+                    circuit.exercises.forEach(exercise => {
                         const row = table.insertRow();
                         row.innerHTML = `
                             <td>${exercise.name}</td>
                             <td>${exercise.target}</td>
-                            <td><input type="number" min="0" oninput="checkTarget(this); updateChart(${workoutIndex}, ${circuitIndex}, ${exerciseIndex}, this.value);"></td>
+                            <td><input type="number" min="0" oninput="checkTarget(this)"></td>
                             <td><input type="checkbox" disabled></td>
+                            <td class="last-session"></td>
                         `;
                     });
                     
                     workoutDiv.appendChild(document.createElement('h3')).textContent = circuit.name;
                     workoutDiv.appendChild(table);
-
-                    // Ajout du conteneur pour le graphique
-                    const chartContainer = document.createElement('div');
-                    chartContainer.className = 'chart-container';
-                    chartContainer.innerHTML = `<canvas id="chart-${workoutIndex}-${circuitIndex}"></canvas>`;
-                    workoutDiv.appendChild(chartContainer);
-
-                    // Création du graphique
-                    createChart(workoutIndex, circuitIndex, circuit.exercises);
                 });
                 
                 container.appendChild(workoutDiv);
@@ -181,62 +170,25 @@
             }
         }
 
-        function createChart(workoutIndex, circuitIndex, exercises) {
-            const ctx = document.getElementById(`chart-${workoutIndex}-${circuitIndex}`).getContext('2d');
-            const chart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: ['Séance 1', 'Séance 2', 'Séance 3', 'Séance 4', 'Séance 5'],
-                    datasets: exercises.map((exercise, index) => ({
-                        label: exercise.name,
-                        data: [],
-                        borderColor: getColor(index),
-                        fill: false
-                    }))
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-            chart.workoutIndex = workoutIndex;
-            chart.circuitIndex = circuitIndex;
-        }
-
-        function getColor(index) {
-            const colors = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#d35400', '#34495e'];
-            return colors[index % colors.length];
-        }
-
-        function updateChart(workoutIndex, circuitIndex, exerciseIndex, value) {
-            const chart = Chart.getChart(`chart-${workoutIndex}-${circuitIndex}`);
-            if (chart) {
-                const dataset = chart.data.datasets[exerciseIndex];
-                dataset.data.push(parseInt(value));
-                if (dataset.data.length > 5) {
-                    dataset.data.shift();
-                }
-                chart.update();
-            }
-        }
-
         function saveProgress() {
             const tables = document.querySelectorAll('table');
             const progress = [];
+            const lastSession = JSON.parse(localStorage.getItem('workoutProgress')) || [];
             
-            tables.forEach(table => {
+            tables.forEach((table, tableIndex) => {
                 const exercises = [];
-                table.querySelectorAll('tr:not(:first-child)').forEach(row => {
+                table.querySelectorAll('tr:not(:first-child)').forEach((row, rowIndex) => {
+                    const achieved = row.cells[2].querySelector('input').value;
                     exercises.push({
                         name: row.cells[0].textContent,
-                        achieved: row.cells[2].querySelector('input').value,
+                        achieved: achieved,
                         targetMet: row.cells[3].querySelector('input').checked
                     });
+
+                    // Mise à jour de la dernière séance
+                    if (lastSession[tableIndex] && lastSession[tableIndex][rowIndex]) {
+                        row.cells[4].textContent = lastSession[tableIndex][rowIndex].achieved;
+                    }
                 });
                 progress.push(exercises);
             });
@@ -254,11 +206,7 @@
                         const achievedInput = row.cells[2].querySelector('input');
                         achievedInput.value = savedProgress[tableIndex][rowIndex].achieved;
                         checkTarget(achievedInput);
-                        
-                        // Mise à jour du graphique avec la valeur chargée
-                        const workoutIndex = Math.floor(tableIndex / 3); // Supposant 3 circuits par séance
-                        const circuitIndex = tableIndex % 3;
-                        updateChart(workoutIndex, circuitIndex, rowIndex, achievedInput.value);
+                        row.cells[4].textContent = savedProgress[tableIndex][rowIndex].achieved;
                     });
                 });
             }

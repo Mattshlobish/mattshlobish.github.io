@@ -140,7 +140,7 @@
                         row.innerHTML = `
                             <td>${exercise.name}</td>
                             <td>${exercise.target}</td>
-                            <td><input type="number" min="0" oninput="checkTarget(this)"></td>
+                            <td><input type="tel" inputmode="numeric" pattern="[0-9]*" oninput="checkTarget(this)"></td>
                             <td><input type="checkbox" disabled></td>
                             <td class="last-session"></td>
                         `;
